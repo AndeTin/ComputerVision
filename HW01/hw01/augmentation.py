@@ -23,7 +23,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from torch.utils.data import Dataset
 
-from data import resolution_group
+from .data import resolution_group
 
 #: A record is (path, label, replicate_index). replicate_index == 0 is the
 #: untouched original, so a targeted class has total size 1 + n_replicates.
@@ -194,7 +194,7 @@ class AugmentedFewShotDataset(Dataset):
 
     def __getitem__(self, i: int):
         path, label, rep = self.records3[i]
-        from data import pil_loader  # local import keeps data.py import-cycle free
+        from ..data import pil_loader  # local import keeps data.py import-cycle free
 
         img = pil_loader(path)
         if rep > 0 and self.spec.name != "none" and label in self.target_labels:

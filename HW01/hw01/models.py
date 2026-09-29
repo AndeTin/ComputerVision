@@ -20,7 +20,7 @@ from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 from torchvision.models import ResNet18_Weights, resnet18
 
-from data import CACHE_DIR, ensure_dirs
+from .data import CACHE_DIR, ensure_dirs
 
 
 class ResNet18FeatureExtractor(nn.Module):

@@ -14,13 +14,16 @@ Sequence:
 
 from __future__ import annotations
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
 import numpy as np
 
-from augmentation import SPECS, AugmentSpec
-from data import SEEDS, ensure_dirs, save_json, set_global_seed
-from experiment import RunConfig, run_config
-from metrics import describe_comparison, format_pm, intervals_overlap, rank_weak_classes
-from models import get_feature_extractor
+from hw01.augmentation import SPECS, AugmentSpec
+from hw01.data import SEEDS, ensure_dirs, save_json, set_global_seed
+from hw01.experiment import RunConfig, run_config
+from hw01.metrics import describe_comparison, format_pm, intervals_overlap, rank_weak_classes
+from hw01.models import get_feature_extractor
 
 #: Per-class augmentation ratios swept to find the turning point.
 #: 1.0 is M0 (no augmentation); the rest add copies to the weak classes only.
@@ -30,23 +33,23 @@ RATIO_SWEEP = (1.0, 2.0, 4.0, 8.0, 16.0)
 N_TARGET_CLASSES = 5
 
 #: Geometry carried over from Q2 so Q3 isolates the augmentation effect.
-#: Read from results/q2_strategies.json when that stage has been run, so the
-#: winner is never hardcoded and Q2/Q3 cannot silently disagree. The fallback
-#: matches Q2's default sweep order and is only used if Q2 has not been run.
+#: Read from results/full/q2_strategies.json when that stage has been run, so
+#: the winner is never hardcoded and Q2/Q3 cannot silently disagree. The
+#: fallback matches Q2's default sweep order and is only used if Q2 has not
+#: been run.
 _FALLBACK_GEOMETRY = ("resize_crop", "bilinear")
 
 
 def _geometry_from_q2() -> tuple[str, str]:
     """Return (strategy, interpolation) of the Q2 winner."""
+    import json
     import os
 
-    from data import RESULTS_DIR
+    from hw01.data import FULL_RESULTS_DIR
 
-    path = os.path.join(RESULTS_DIR, "q2_strategies.json")
+    path = os.path.join(FULL_RESULTS_DIR, "q2_strategies.json")
     if not os.path.exists(path):
         return _FALLBACK_GEOMETRY
-    import json
-
     with open(path) as fh:
         q2 = json.load(fh)
     strategy, _, interp = q2["best_config"].partition("|")
@@ -102,9 +105,9 @@ def semantic_integrity(spec: AugmentSpec, target_labels, m0, seeds=SEEDS,
     import torch
     from torch.utils.data import DataLoader
 
-    from augmentation import AugmentedFewShotDataset, expand_records
-    from data import build_transform, make_split
-    from models import extract_features
+    from hw01.augmentation import AugmentedFewShotDataset, expand_records
+    from hw01.data import build_transform, make_split
+    from hw01.models import extract_features
 
     extractor = extractor or get_feature_extractor()
     set_global_seed(seeds[0])
@@ -279,7 +282,7 @@ def run(seeds=SEEDS) -> dict:
     ensure_dirs()
     extractor = get_feature_extractor()
 
-    from data import get_class_paths
+    from hw01.data import get_class_paths
     class_names = [f"cl{i+1:02d}" for i in range(20)]
     assert all(p for p in get_class_paths()), "dataset discovery failed"
 

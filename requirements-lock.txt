@@ -1,0 +1,63 @@
+# Exact environment used to produce the results in HW01/results/*.json
+#
+# Full `pip freeze` of the development venv: transitive dependencies plus CUDA
+# runtime wheels. Use this to reproduce the reported numbers on a similar
+# machine; use requirements.txt for a clean CPU-only install.
+#
+# Regenerate with:  pip freeze > requirements-lock.txt
+#
+# The nvidia-*/triton/cuda-* entries exist only because this venv installed the
+# CUDA build of torch. They are NOT needed on a CPU machine -- installing torch
+# from the CPU index skips all of them.
+#
+# pandas is present in the venv but is NOT imported anywhere in HW01; it is
+# kept here only because this file mirrors the venv exactly.
+#
+cloudpickle==3.1.2
+contourpy==1.4.0
+cuda-bindings==13.4.3
+cuda-pathfinder==1.8.2
+cuda-toolkit==13.0.3.0
+cycler==0.12.1
+filelock==4.0.6
+fonttools==4.66.0
+fsspec==2026.9.0
+Jinja2==3.1.6
+joblib==1.6.0
+kiwisolver==1.5.1
+MarkupSafe==3.0.3
+matplotlib==3.11.2
+mpmath==1.3.0
+narwhals==2.26.0
+networkx==3.7
+numpy==2.5.3
+nvidia-cublas==13.1.1.3
+nvidia-cuda-cupti==13.0.85
+nvidia-cuda-nvrtc==13.0.88
+nvidia-cuda-runtime==13.0.96
+nvidia-cudnn-cu13==9.24.0.43
+nvidia-cufft==12.0.0.61
+nvidia-cufile==1.15.1.6
+nvidia-curand==10.4.0.35
+nvidia-cusolver==12.0.4.66
+nvidia-cusparse==12.6.3.3
+nvidia-cusparselt-cu13==0.8.1
+nvidia-nccl-cu13==2.30.7
+nvidia-nvjitlink==13.4.92
+nvidia-nvshmem-cu13==3.4.5
+nvidia-nvtx==13.0.85
+packaging==26.3
+pandas==3.0.6
+pillow==12.3.0
+pyparsing==3.3.3
+python-dateutil==2.9.0.post0
+scikit-learn==1.9.1
+scipy==1.18.1
+setuptools==84.0.0
+six==1.17.0
+sympy==1.14.0
+threadpoolctl==3.7.0
+torch==2.14.0
+torchvision==0.29.0
+triton==3.8.0
+typing_extensions==4.16.0

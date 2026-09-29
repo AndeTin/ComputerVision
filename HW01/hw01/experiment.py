@@ -14,13 +14,13 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from augmentation import AugmentSpec, AugmentedFewShotDataset, expand_records
-from data import (
+from .augmentation import AugmentSpec, AugmentedFewShotDataset, expand_records
+from .data import (
     IMAGENET_MEAN, IMAGENET_STD, SEEDS, build_transform, cache_key,
     compute_pixel_stats, make_loader, make_split, set_global_seed,
 )
-from metrics import aggregate, compute_metrics
-from models import LogisticRegressionProbe, extract_features, get_feature_extractor
+from .metrics import aggregate, compute_metrics
+from .models import LogisticRegressionProbe, extract_features, get_feature_extractor
 
 
 @dataclass

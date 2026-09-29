@@ -1,4 +1,14 @@
-/HW01/.cache
-/HW01/__pycache__
+# python bytecode, anywhere in the tree (hw01/, stages/)
+__pycache__/
+*.py[cod]
+
+# memoised ResNet-18 features: ~59 MB, rebuildable via run_experiments.py
+/HW01/.cache/
+
+# local virtualenv marker
 /.venv
+
+# dataset is provided by the course staff, not part of the submission
 /dataset
+/HW01/plots
+/HW01/results

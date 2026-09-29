@@ -19,19 +19,57 @@ From-scratch run is ~23 min on CPU. Resumed runs are ~1 min: 512-d backbone
 features are memoised under `.cache/`, keyed by everything that can change
 them. Delete `.cache/` to force recomputation.
 
+## Environment
+
+Pinned in `../requirements.txt` (direct deps) and `../requirements-lock.txt`
+(exact venv). A CPU-only install is enough and skips ~4.5 GB of CUDA wheels:
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+Run from the repository root (`ComputerVision/`), one level above this README;
+`requirements.txt` and the `dataset/` directory are both there. ResNet-18
+ImageNet weights download on first run (~45 MB) and cache to `~/.cache/torch`.
+
+
 ## Layout
 
-| File | Role |
-|------|------|
-| `data.py` | splitting, EXIF-safe loading, the three geometry strategies, dataset stats |
-| `models.py` | frozen ResNet-18 feature extractor + scikit-learn LogisticRegression probe |
-| `metrics.py` | per-run metrics, cross-seed mean ± sd, confusion matrices, interval-overlap tests |
-| `augmentation.py` | augmentation recipes, targeted replication, record expansion |
-| `experiment.py` | one code path from config → features → probe → metrics |
-| `q1_input_pipeline.py` | split rule, seed fixation order, EXIF audit, normalisation comparison |
-| `q2_resolution_comparison.py` | 3 strategies × 2 interpolations × 3 seeds, padding audit |
-| `q3_augmentation_design.py` | M0 baseline, weak-class selection, integrity check, M1 ratio sweep |
-| `run_experiments.py` | entry point + all figures |
+```
+HW01/
+  hw01/                 library — no stage logic
+    data.py             splitting, EXIF-safe loading, the three geometry strategies, dataset stats
+    models.py           frozen ResNet-18 feature extractor + scikit-learn LogisticRegression probe
+    metrics.py          per-run metrics, cross-seed mean ± sd, confusion matrices, interval-overlap tests
+    augmentation.py     augmentation recipes, targeted replication, record expansion
+    experiment.py       one code path from config → features → probe → metrics
+    reporting.py        summary.json assembly and report-ready markdown tables
+  stages/               one module per assignment question
+    q1_input_pipeline.py       split rule, seed fixation order, EXIF audit, normalisation comparison
+    q2_resolution_comparison.py  3 strategies × 2 interpolations × 3 seeds, geometry audit
+    q3_augmentation_design.py    M0 baseline, weak-class selection, integrity check, M1 ratio sweep
+  run_experiments.py    entry point: stage dispatch, summary, all figures
+  results/
+    summary.json        report-facing: headline numbers, rankings, markdown tables
+    full/               verbose archive: per-seed detail, regenerates every figure
+  plots/                7 figures
+```
+
+The library carries no knowledge of which stage is running, and the stages carry
+no figure code. `run_experiments.py` is the only module that knows both.
+
+## Results layout
+
+Two files, two audiences:
+
+| Path | Contains | Use |
+|------|----------|-----|
+| `results/summary.json` | headline M0/M1 table, Q2 ranking, Q3 ratio sweep, per-class recall, pre-rendered markdown | quoting numbers in the write-up |
+| `results/full/*.json` | every field including per-seed 20×20 confusion matrices | redrawing any figure without retraining |
+
+`full/` is intentionally verbose — it is the reproducibility archive, not
+something to read. A full run is ~3.5 min with a warm `.cache/`, ~23 min cold.
 
 ## Reproducibility contract
 
@@ -66,3 +104,10 @@ legacy `multi_class` argument was removed in scikit-learn 1.5 and is not used.
   is not used to rank strategies.
 - `C=1.0` is not tuned. With 7–21 images per class the regularisation strength
   materially changes the decision boundary, making it a natural M2 lever.
+- The geometry audit in Q2 is computed analytically from the transform
+  definitions, not by scanning for dark pixels. An earlier pixel-scan version
+  reported non-zero "padding" for `direct`, a strategy that injects none: it was
+  counting genuinely black photograph content. The analytic version also
+  separates the two failure modes the strategies trade off — fabricated zero
+  fill versus discarded original content. `resize_crop` is the only strategy
+  that does both.

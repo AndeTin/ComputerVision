@@ -1,0 +1,27 @@
+# HW01 runtime dependencies
+#
+# Direct dependencies only -- everything else is pulled in transitively.
+# Versions are pinned to the set this project was developed and validated
+# against. ResNet-18 ImageNet weights are downloaded on first run and cached
+# under ~/.cache/torch, so the first execution needs network access.
+#
+# Install (CPU only -- sufficient for HW01 and HW02, and ~500 MB instead of
+# the ~5.8 GB a CUDA build pulls in):
+#
+#     python3.11 -m venv .venv && source .venv/bin/activate
+#     pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+#
+# If you need the CUDA build instead, drop the --extra-index-url flag and pin
+# torch/torchvision to the plain versions; expect a multi-GB download.
+#
+# NOTE: the environment used for development ran Python 3.14.7. The assignment
+# specifies Python 3.11, which these pins also support. torch 2.14.0 ships
+# cp311 wheels, so 3.11 is a supported target.
+
+torch==2.14.0
+torchvision==0.29.0
+numpy==2.5.3
+scikit-learn==1.9.1
+scipy==1.18.1
+matplotlib==3.11.2
+pillow==12.3.0

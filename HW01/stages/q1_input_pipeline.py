@@ -10,9 +10,12 @@ Answers, with artefacts rather than assertions:
 
 from __future__ import annotations
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
 import numpy as np
 
-from data import (
+from hw01.data import (
     DATASET_DIR, IMAGENET_MEAN, IMAGENET_STD, N_VAL_PER_CLASS, SEEDS,
     compute_pixel_stats, dataset_resolution_profile, get_class_paths, make_split,
     pil_loader, save_json, set_global_seed,

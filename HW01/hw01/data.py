@@ -32,8 +32,11 @@ from torchvision.transforms import InterpolationMode
 # ----------------------------------------------------------------------------
 
 DATASET_DIR = "/home/jc/homework/ComputerVision/dataset"
-HW01_DIR = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))   # HW01/hw01
+HW01_DIR = os.path.dirname(PACKAGE_DIR)                     # HW01
 RESULTS_DIR = os.path.join(HW01_DIR, "results")
+FULL_RESULTS_DIR = os.path.join(RESULTS_DIR, "full")
+SUMMARY_PATH = os.path.join(RESULTS_DIR, "summary.json")
 PLOTS_DIR = os.path.join(HW01_DIR, "plots")
 CACHE_DIR = os.path.join(HW01_DIR, ".cache")
 
@@ -57,7 +60,7 @@ STRATEGIES = ("direct", "resize_crop", "pad_to_square")
 
 
 def ensure_dirs() -> None:
-    for d in (RESULTS_DIR, PLOTS_DIR, CACHE_DIR):
+    for d in (RESULTS_DIR, FULL_RESULTS_DIR, PLOTS_DIR, CACHE_DIR):
         os.makedirs(d, exist_ok=True)
 
 
@@ -383,9 +386,16 @@ def cache_key(**parts) -> str:
     return hashlib.sha1(blob).hexdigest()[:16]
 
 
-def save_json(obj, filename: str) -> str:
+def save_json(obj, filename: str, full: bool = True) -> str:
+    """Write a JSON artefact, by default to the verbose ``results/full/``.
+
+    ``full=True`` keeps every field, including the per-seed confusion matrices
+    needed to redraw the matrices, so any figure can be rebuilt without
+    retraining. The report-facing view is assembled separately by
+    :func:`hw01.reporting.build_summary` into ``results/summary.json``.
+    """
     ensure_dirs()
-    path = os.path.join(RESULTS_DIR, filename)
+    path = os.path.join(FULL_RESULTS_DIR if full else RESULTS_DIR, filename)
     with open(path, "w") as fh:
         json.dump(obj, fh, indent=2, default=str)
     return path

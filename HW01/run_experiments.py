@@ -22,8 +22,12 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from data import N_VAL_PER_CLASS, PLOTS_DIR, RESULTS_DIR, SEEDS, ensure_dirs, set_global_seed
-from metrics import format_pm
+from hw01.data import (
+    FULL_RESULTS_DIR, N_VAL_PER_CLASS, PLOTS_DIR, RESULTS_DIR, SEEDS,
+    SUMMARY_PATH, ensure_dirs, set_global_seed,
+)
+from hw01.metrics import format_pm
+from hw01.reporting import build_summary
 
 CLASS_LABELS = [f"cl{i:02d}" for i in range(1, 21)]
 
@@ -114,16 +118,18 @@ def plot_q2(r: dict) -> None:
     ax = axes[1]
     pa = r["padding_audit"]
     strat = list(pa)
-    pct = [pa[s]["pct_with_synthetic_black"] for s in strat]
+    syn = [pa[s]["pct_with_synthetic_fill"] for s in strat]
+    dis = [pa[s]["pct_with_discarded_content"] for s in strat]
     up = [pa[s]["median_short_side_upscale"] for s in strat]
     x = np.arange(len(strat))
-    ax.bar(x - 0.2, pct, 0.4, label="% images w/ synthetic black")
-    ax.set_ylabel("% of images with black border", color="tab:blue")
+    ax.bar(x - 0.27, syn, 0.26, label="% images w/ zero fill", color="tab:blue")
+    ax.bar(x, dis, 0.26, label="% images w/ content cropped away", color="tab:green")
+    ax.set_ylabel("% of images", color="tab:blue")
     ax.set_xticks(x, strat, rotation=15)
     ax2 = ax.twinx()
-    ax2.bar(x + 0.2, up, 0.4, color="tab:orange", alpha=0.7, label="median short-side upscale")
+    ax2.bar(x + 0.27, up, 0.26, color="tab:orange", alpha=0.7, label="median short-side upscale")
     ax2.set_ylabel("median upscale factor (×)", color="tab:orange")
-    ax.set_title("Q2 mechanism: what each strategy fabricates")
+    ax.set_title("Q2 mechanism: fabricated vs discarded content")
     h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels()
     ax.legend(h1 + h2, l1 + l2, fontsize=8)
 
@@ -258,8 +264,8 @@ def plot_augmentation_samples(q3_result: dict | None = None) -> None:
     plt = _plt()
     import random
 
-    from augmentation import SPECS, apply_augmentation
-    from data import make_split, pil_loader
+    from hw01.augmentation import SPECS, apply_augmentation
+    from hw01.data import make_split, pil_loader
 
     split = make_split(SEEDS[0])
     if q3_result is not None:
@@ -275,9 +281,15 @@ def plot_augmentation_samples(q3_result: dict | None = None) -> None:
 
     recipes = [n for n in SPECS if n != "none"]
     n_show = 3
+    n_blocks = len(recipes) + 1
+    n_rows = len(picks) * n_blocks
 
-    fig, axes = plt.subplots(len(picks) * (len(recipes) + 1), n_show,
-                             figsize=(3 * n_show, 2.1 * len(picks) * (len(recipes) + 1)),
+    # Kept deliberately modest: this montage is a qualitative check, and at a
+    # comfortable cell size it renders to a multi-megabyte PNG. 2.6in cells at
+    # 120 dpi leave each thumbnail ~310 px wide while keeping the file around
+    # 1 MB instead of the 2.6 MB a naive figsize/dpi choice produces.
+    fig, axes = plt.subplots(n_rows, n_show,
+                             figsize=(2.6 * n_show, 1.5 * n_rows),
                              squeeze=False)
     axes = axes.ravel()  # flat view: one entry per cell
     rng = random.Random(0)
@@ -297,8 +309,8 @@ def plot_augmentation_samples(q3_result: dict | None = None) -> None:
         ax.set_xticks([]); ax.set_yticks([])
     fig.suptitle("Q3: augmentation recipes on weak / mid / strong classes "
                  "(column = image, block = recipe)", fontweight="bold", fontsize=10)
-    fig.tight_layout(rect=[0, 0, 1, 0.985])
-    fig.savefig(os.path.join(PLOTS_DIR, "q3_augmentation_samples.png"), dpi=130)
+    fig.tight_layout(rect=[0, 0, 1, 0.99])
+    fig.savefig(os.path.join(PLOTS_DIR, "q3_augmentation_samples.png"), dpi=120)
     plt.close(fig)
 
 
@@ -323,7 +335,7 @@ def main() -> None:
 
     store = {}
     if args.stage in ("q1", "all"):
-        import q1_input_pipeline as q1
+        from stages import q1_input_pipeline as q1
         store["q1"] = q1.run()
         q1._print_summary(store["q1"])
         print()
@@ -331,7 +343,7 @@ def main() -> None:
             plot_q1(store["q1"])
 
     if args.stage in ("q2", "all"):
-        import q2_resolution_comparison as q2
+        from stages import q2_resolution_comparison as q2
         store["q2"] = q2.run()
         q2._print_summary(store["q2"])
         print()
@@ -339,7 +351,7 @@ def main() -> None:
             plot_q2(store["q2"])
 
     if args.stage in ("q3", "all"):
-        import q3_augmentation_design as q3
+        from stages import q3_augmentation_design as q3
         store["q3"] = q3.run()
         q3._print_summary(store["q3"])
         if not args.no_plots:
@@ -353,7 +365,7 @@ def main() -> None:
             plot_per_class(store["q3"]["m0"], store["q3"]["best_m1"])
             plot_ratio_sweep(store["q3"])
             if not args.no_samples:
-                plot_augmentation_samples()
+                plot_augmentation_samples(store["q3"])
 
     print(f"\n{'=' * 72}")
     print("Headline numbers (mean ± sd over 3 sampling configurations)")
@@ -367,9 +379,19 @@ def main() -> None:
               f"Macro-F1 {format_pm(m1['macro_f1_mean'], m1['macro_f1_std'])}  "
               f"worst {format_pm(m1['worst_class_recall_mean'], m1['worst_class_recall_std'])}")
     if "q2" in store:
-        print(f"  Q2 best geometry: {store['q2']['best_config']} "
-              f"Macro-F1 {format_pm(store['q2']['results'][store['q2']['best_config']]['macro_f1_mean'], store['q2']['results'][store['q2']['best_config']]['macro_f1_std'])}")
-    print(f"\nartefacts: {RESULTS_DIR}/*.json, {PLOTS_DIR}/*.png")
+        best = store["q2"]["best_config"]
+        print(f"  Q2 best geometry: {best} "
+              f"Macro-F1 {format_pm(store['q2']['results'][best]['macro_f1_mean'], store['q2']['results'][best]['macro_f1_std'])}")
+
+    if store:
+        summary = build_summary(store.get("q1"), store.get("q2"), store.get("q3"))
+        h = summary.get("headline", {})
+        if h:
+            print(f"\n  verdict: {h['verdict']}")
+
+    print(f"\nartefacts: {SUMMARY_PATH}")
+    print(f"           {FULL_RESULTS_DIR}/*.json  (verbose, per-seed detail)")
+    print(f"           {PLOTS_DIR}/*.png")
     print(f"total wall time {time.time() - t0:.0f}s")
 
 

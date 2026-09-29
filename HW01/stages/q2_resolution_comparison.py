@@ -17,60 +17,107 @@ aspect ratio*, not merely in how much they resample.
 
 from __future__ import annotations
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
 import numpy as np
 
-from data import (
-    DATASET_DIR, IMAGE_SIZE, INTERPOLATIONS, SEEDS, STRATEGIES,
-    save_json, set_global_seed,
+from hw01.data import (
+    DATASET_DIR, IMAGE_SIZE, INTERPOLATIONS, RESIZE_BASE, SEEDS, STRATEGIES,
+    get_class_paths, save_json, set_global_seed,
 )
-from experiment import RunConfig, run_config
-from metrics import describe_comparison, format_pm, intervals_overlap
-from models import get_feature_extractor
+from hw01.experiment import RunConfig, run_config
+from hw01.metrics import describe_comparison, format_pm, intervals_overlap
+from hw01.models import get_feature_extractor
+
+
+def _geometry_areas(w: int, h: int, strategy: str) -> dict:
+    """Analytic breakdown of what one geometry does to a (w, h) image.
+
+    Derived from the transform definitions rather than measured from pixels.
+    A pixel-scan cannot separate "black the transform injected" from "black
+    that was in the photograph", which made an earlier version of this audit
+    report non-zero padding for ``direct`` -- a strategy that injects none.
+
+    Returns the fraction of the 224x224 output that is synthetic fill, the
+    fraction of original content thrown away, and the short-side upscale.
+    """
+    out = IMAGE_SIZE * IMAGE_SIZE
+    if strategy == "direct":
+        # Anisotropic squash: the content fills the frame, distorted.
+        return {"synthetic_frac": 0.0, "discarded_frac": 0.0,
+                "upscale_short": IMAGE_SIZE / min(w, h)}
+
+    if strategy == "pad_to_square":
+        # Long side -> 224, then symmetric zero-pad on the short dimension.
+        scale = IMAGE_SIZE / max(w, h)
+        nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
+        return {"synthetic_frac": max(0.0, 1.0 - (nw * nh) / out),
+                "discarded_frac": 0.0,
+                "upscale_short": IMAGE_SIZE / min(w, h)}
+
+    if strategy == "resize_crop":
+        # Resize(256) on the long side, then CenterCrop(224).
+        scale = RESIZE_BASE / max(w, h)
+        nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
+        if min(nw, nh) < IMAGE_SIZE:
+            # torchvision pads symmetrically up to IMAGE_SIZE, then the 224
+            # crop is a no-op. All the synthetic area is the padding.
+            return {"synthetic_frac": max(0.0, 1.0 - (nw * nh) / out),
+                    "discarded_frac": 0.0,
+                    "upscale_short": IMAGE_SIZE / min(w, h)}
+        # Short side already exceeds the crop: the outer ring is discarded.
+        return {"synthetic_frac": 0.0,
+                "discarded_frac": max(0.0, 1.0 - out / (nw * nh)),
+                "upscale_short": IMAGE_SIZE / min(w, h)}
+
+    raise ValueError(strategy)
 
 
 def _padding_audit(dataset_dir: str = DATASET_DIR) -> dict:
-    """How much black does each strategy inject, image by image?
+    """How much does each strategy fabricate, and how much does it throw away?
 
-    Measured on the *geometry* stage alone, before normalisation, by comparing
-    each output against a version with the synthetic border region filled by
-    the image's own border colour.
+    Separates the two failure modes the three strategies trade off:
+
+    * ``synthetic_frac`` -- fraction of the output filled with zeros. The
+      frozen backbone has never seen such an input, so this is distribution
+      shift, not data.
+    * ``discarded_frac`` -- fraction of the original image cropped away. This
+      is information loss, the opposite failure.
     """
     from PIL import Image
-    from data import get_class_paths, pil_loader, build_geometry
 
-    stats = {s: {"n_padded": 0, "frac_black": [], "n_upscaled": 0,
-                 "upscale_factor": []} for s in STRATEGIES}
+    per = {s: {"synthetic": [], "discarded": [], "upscale": []} for s in STRATEGIES}
     n_total = 0
     for paths in get_class_paths(dataset_dir):
         for p in paths:
             n_total += 1
             w, h = Image.open(p).size
             for s in STRATEGIES:
-                out = build_geometry(s)(pil_loader(p))
-                a = np.asarray(out, dtype=np.float32)
-                # A pixel is "synthetic black" if it is near 0; real dark
-                # pixels are rare in this dataset, so this is a good proxy.
-                frac = float((a.max(axis=2) <= 2).mean())
-                stats[s]["frac_black"].append(frac)
-                if frac > 0.001:
-                    stats[s]["n_padded"] += 1
-                scale = IMAGE_SIZE / min(w, h)
-                if scale > 1.0:
-                    stats[s]["n_upscaled"] += 1
-                stats[s]["upscale_factor"].append(scale)
+                a = _geometry_areas(w, h, s)
+                per[s]["synthetic"].append(a["synthetic_frac"])
+                per[s]["discarded"].append(a["discarded_frac"])
+                per[s]["upscale"].append(a["upscale_short"])
 
+    stats = {}
     for s in STRATEGIES:
-        fb = np.asarray(stats[s]["frac_black"])
-        uf = np.asarray(stats[s]["upscale_factor"])
+        syn = np.asarray(per[s]["synthetic"])
+        dis = np.asarray(per[s]["discarded"])
+        up = np.asarray(per[s]["upscale"])
         stats[s] = {
             "n_images": n_total,
-            "n_with_synthetic_black": int(stats[s]["n_padded"]),
-            "pct_with_synthetic_black": round(100 * stats[s]["n_padded"] / n_total, 1),
-            "mean_black_area_frac": round(float(fb.mean()), 4),
-            "max_black_area_frac": round(float(fb.max()), 4),
-            "n_upscaled_on_short_side": int((uf > 1.0).sum()),
-            "median_short_side_upscale": round(float(np.median(uf)), 3),
-            "max_short_side_upscale": round(float(uf.max()), 2),
+            "n_with_synthetic_fill": int((syn > 1e-9).sum()),
+            "pct_with_synthetic_fill": round(100 * float((syn > 1e-9).mean()), 1),
+            "mean_synthetic_area_frac": round(float(syn.mean()), 4),
+            "max_synthetic_area_frac": round(float(syn.max()), 4),
+            "n_with_discarded_content": int((dis > 1e-9).sum()),
+            "pct_with_discarded_content": round(100 * float((dis > 1e-9).mean()), 1),
+            "mean_discarded_area_frac": round(float(dis.mean()), 4),
+            "max_discarded_area_frac": round(float(dis.max()), 4),
+            "n_upscaled_on_short_side": int((up > 1.0).sum()),
+            "pct_upscaled_on_short_side": round(100 * float((up > 1.0).mean()), 1),
+            "median_short_side_upscale": round(float(np.median(up)), 3),
+            "max_short_side_upscale": round(float(up.max()), 2),
         }
     return stats
 
@@ -107,8 +154,10 @@ def run(dataset_dir: str = DATASET_DIR, seeds=SEEDS) -> dict:
           + ", ".join(map(str, seeds)) + ")")
     print("=" * 72)
     for strat, st in padding.items():
-        print(f"  {strat:14s} synthetic black in {st['pct_with_synthetic_black']:5.1f}% of images "
-              f"(mean area {st['mean_black_area_frac']:.3f}, max {st['max_black_area_frac']:.3f}) | "
+        print(f"  {strat:14s} zero-filled in {st['pct_with_synthetic_fill']:5.1f}% of images "
+              f"(mean area {st['mean_synthetic_area_frac']:.3f}, max {st['max_synthetic_area_frac']:.3f}) | "
+              f"content cropped away in {st['pct_with_discarded_content']:5.1f}% "
+              f"(mean {st['mean_discarded_area_frac']:.3f}) | "
               f"short-side upscale median {st['median_short_side_upscale']:.2f}x max {st['max_short_side_upscale']:.1f}x")
     print()
 
