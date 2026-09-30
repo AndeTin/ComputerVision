@@ -1,13 +1,13 @@
 # HW01 — few-shot input pipeline and custom augmentation
 
+> [繁體中文版](README.zh-TW.md)
+
 Produces **M0** (real images only) and **M1** (M0 + custom augmentation).
 No generative model is used anywhere in this submission.
 
 ## Run
 
 ```bash
-source /home/jc/.virtualenvs/ComputerVision-vsgm/bin/activate
-cd /home/jc/homework/ComputerVision
 
 python HW01/run_experiments.py                # Q1 + Q2 + Q3, all figures
 python HW01/run_experiments.py --stage q1     # one stage
