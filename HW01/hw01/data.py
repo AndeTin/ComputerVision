@@ -31,7 +31,12 @@ from torchvision.transforms import InterpolationMode
 # Global configuration
 # ----------------------------------------------------------------------------
 
-DATASET_DIR = "/home/jc/homework/ComputerVision/dataset"
+"""Root of the repository, i.e. the folder holding both ``HW01/`` and
+``dataset/``. Derived from this file's location so the project works from any
+checkout path, on any platform.
+"""
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))   # HW01/hw01
 HW01_DIR = os.path.dirname(PACKAGE_DIR)                     # HW01
 RESULTS_DIR = os.path.join(HW01_DIR, "results")
@@ -39,6 +44,13 @@ FULL_RESULTS_DIR = os.path.join(RESULTS_DIR, "full")
 SUMMARY_PATH = os.path.join(RESULTS_DIR, "summary.json")
 PLOTS_DIR = os.path.join(HW01_DIR, "plots")
 CACHE_DIR = os.path.join(HW01_DIR, ".cache")
+
+#: The dataset lives beside ``HW01/`` in the repository root. Resolved relative
+#: to this file rather than hardcoded, so moving or cloning the repo anywhere
+#: works. Override with the ``HW01_DATASET_DIR`` environment variable if the
+#: data is kept outside the checkout.
+DATASET_DIR = os.environ.get(
+    "HW01_DATASET_DIR", os.path.join(REPO_ROOT, "dataset"))
 
 #: The three sampling configurations mandated by the assignment.
 SEEDS = (42, 420, 4200)
@@ -65,12 +77,20 @@ def ensure_dirs() -> None:
 
 
 def set_global_seed(seed: int) -> None:
-    """Seed every RNG the pipeline can touch, in a fixed documented order."""
+    """Seed every RNG the pipeline can touch, in a fixed documented order.
+
+    Note on ``PYTHONHASHSEED``: setting it here is a no-op, because CPython
+    reads it once at interpreter startup. Hash-order determinism is instead
+    achieved structurally -- every directory and filename listing is explicitly
+    ``sorted()`` before use, so no result depends on set or dict iteration
+    order. If hash randomisation must be pinned for some external tool, export
+    it before launching: ``PYTHONHASHSEED=0 python HW01/run_experiments.py``.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 # ----------------------------------------------------------------------------
@@ -84,6 +104,13 @@ def get_class_paths(dataset_dir: str = DATASET_DIR) -> list[list[str]]:
     Sorting both the class names and the file names is part of the
     reproducibility contract: it removes filesystem-order dependence.
     """
+    if not os.path.isdir(dataset_dir):
+        raise FileNotFoundError(
+            f"dataset directory not found: {dataset_dir}\n"
+            f"Expected one subfolder per class (cl01..cl{NUM_CLASSES:02d}) beside "
+            f"HW01/, i.e. at {os.path.join(REPO_ROOT, 'dataset')}.\n"
+            f"Set HW01_DATASET_DIR to point at it if the data lives elsewhere."
+        )
     class_dirs = sorted(
         d for d in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, d))
     )
