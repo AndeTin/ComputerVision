@@ -18,10 +18,10 @@
 # specifies Python 3.11, which these pins also support. torch 2.14.0 ships
 # cp311 wheels, so 3.11 is a supported target.
 
-torch==2.14.0
-torchvision==0.29.0
-numpy==2.5.3
-scikit-learn==1.9.1
-scipy==1.18.1
-matplotlib==3.11.2
-pillow==12.3.0
+torch
+torchvision
+numpy
+scikit-learn
+scipy
+matplotlib
+pillow

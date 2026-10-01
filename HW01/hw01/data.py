@@ -281,9 +281,9 @@ def build_geometry(strategy: str, interpolation: str = "bilinear"):
     """Return the geometry stage for one of the three Q2 strategies.
 
     - ``direct``        : anisotropic squash to 224x224, no synthetic pixels.
-    - ``resize_crop``   : scale long side to 256 then centre-crop 224. Note that
-                          torchvision's ``CenterCrop`` zero-pads whenever the
-                          scaled short side is < 224, i.e. aspect ratio > 1.14.
+    - ``resize_crop``   : ``Resize(256)`` maps the SHORTER side to 256 (the int
+                          form keeps aspect ratio), so ``CenterCrop(224)`` never
+                          pads and simply discards the outer ring.
     - ``pad_to_square`` : scale long side to 224 preserving ratio, zero-pad.
     """
     mode = InterpolationMode.BILINEAR if interpolation == "bilinear" else InterpolationMode.BICUBIC

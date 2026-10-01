@@ -8,9 +8,10 @@ The mechanism under test: the three strategies differ in *what they do to
 aspect ratio*, not merely in how much they resample.
   direct        - anisotropic squash; no synthetic pixels, but object shape
                   is distorted by up to 3.7x here.
-  resize_crop   - isotropic scale then crop; for aspect ratio > 1.14 the
-                  scaled short side is under 224, so torchvision's CenterCrop
-                  zero-pads. Synthetic black borders are introduced silently.
+  resize_crop   - isotropic scale then crop. ``Resize(256)`` is the *int* form,
+                  which maps the SHORTER side to 256, so the scaled short side
+                  is never below 224 and CenterCrop never pads. The loss is
+                  entirely crop: every image loses its outer ring.
   pad_to_square - isotropic scale then explicit symmetric zero-pad. Aspect
                   ratio is preserved and the padding is measurable.
 """
@@ -57,16 +58,11 @@ def _geometry_areas(w: int, h: int, strategy: str) -> dict:
                 "upscale_short": IMAGE_SIZE / min(w, h)}
 
     if strategy == "resize_crop":
-        # Resize(256) on the long side, then CenterCrop(224).
-        scale = RESIZE_BASE / max(w, h)
+        # transforms.Resize(256) is the int form: it maps the SHORTER side to
+        # RESIZE_BASE, so the scaled short side is always >= IMAGE_SIZE and
+        # CenterCrop never zero-pads. All the information loss is the crop.
+        scale = RESIZE_BASE / min(w, h)
         nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
-        if min(nw, nh) < IMAGE_SIZE:
-            # torchvision pads symmetrically up to IMAGE_SIZE, then the 224
-            # crop is a no-op. All the synthetic area is the padding.
-            return {"synthetic_frac": max(0.0, 1.0 - (nw * nh) / out),
-                    "discarded_frac": 0.0,
-                    "upscale_short": IMAGE_SIZE / min(w, h)}
-        # Short side already exceeds the crop: the outer ring is discarded.
         return {"synthetic_frac": 0.0,
                 "discarded_frac": max(0.0, 1.0 - out / (nw * nh)),
                 "upscale_short": IMAGE_SIZE / min(w, h)}
