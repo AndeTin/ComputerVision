@@ -25,7 +25,7 @@ import numpy as np
 
 from hw01.data import (
     DATASET_DIR, IMAGE_SIZE, INTERPOLATIONS, RESIZE_BASE, SEEDS, STRATEGIES,
-    get_class_paths, save_json, set_global_seed,
+    get_class_paths, runtime_versions, save_json, set_global_seed,
 )
 from hw01.experiment import RunConfig, run_config
 from hw01.metrics import describe_comparison, format_pm, intervals_overlap
@@ -193,6 +193,7 @@ def run(dataset_dir: str = DATASET_DIR, seeds=SEEDS) -> dict:
 
     out = {
         "question": "Q2 resolution strategy and interpolation",
+        "runtime": runtime_versions(),
         "seeds": list(seeds),
         "n_runs": len(results) * len(seeds),
         "padding_audit": padding,

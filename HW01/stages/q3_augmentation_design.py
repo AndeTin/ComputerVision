@@ -20,7 +20,7 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)
 import numpy as np
 
 from hw01.augmentation import SPECS, AugmentSpec
-from hw01.data import SEEDS, ensure_dirs, save_json, set_global_seed
+from hw01.data import SEEDS, ensure_dirs, runtime_versions, save_json, set_global_seed
 from hw01.experiment import RunConfig, run_config
 from hw01.metrics import describe_comparison, format_pm, intervals_overlap, rank_weak_classes
 from hw01.models import get_feature_extractor
@@ -325,6 +325,7 @@ def run(seeds=SEEDS) -> dict:
 
     out = {
         "question": "Q3 custom few-shot augmentation (M0 -> M1)",
+        "runtime": runtime_versions(),
         "seeds": list(seeds),
         "geometry": {"strategy": BEST_STRATEGY, "interpolation": BEST_INTERP,
                      "note": "carried over from Q2 so Q3 isolates the augmentation effect"},

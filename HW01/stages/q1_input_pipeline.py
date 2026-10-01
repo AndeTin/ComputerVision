@@ -18,7 +18,7 @@ import numpy as np
 from hw01.data import (
     DATASET_DIR, IMAGENET_MEAN, IMAGENET_STD, N_VAL_PER_CLASS, SEEDS,
     compute_pixel_stats, dataset_resolution_profile, get_class_paths, make_split,
-    pil_loader, save_json, set_global_seed,
+    pil_loader, runtime_versions, save_json, set_global_seed,
 )
 
 
@@ -117,12 +117,21 @@ def run(dataset_dir: str = DATASET_DIR) -> dict:
     set_global_seed(SEEDS[0])
     result = {
         "question": "Q1 reproducible input pipeline",
+        "runtime": runtime_versions(),
         "seed_fixation_order": [
-            "1. set_global_seed(seed): random, numpy, torch, torch.cuda, PYTHONHASHSEED",
+            "1. set_global_seed(seed): random, numpy, torch, torch.cuda",
             "2. deterministic per-class permutation: random.Random(seed*1000 + class_index)",
             "3. DataLoader shuffling uses a separately seeded torch.Generator",
             "4. augmentation RNG: random.Random((seed*1000003 + index)*97 + replicate)",
         ],
+        "hash_seed_note": (
+            "set_global_seed does not set PYTHONHASHSEED: CPython reads it once at "
+            "interpreter startup, so setting it there is a no-op. Hash-order determinism "
+            "is instead structural -- every directory and filename listing is sorted() "
+            "before use, so no result depends on set or dict iteration order. To pin it "
+            "for an external tool, export it before launching: "
+            "PYTHONHASHSEED=0 python HW01/run_experiments.py"
+        ),
         "color_space": {
             "loader": "PIL.Image.open -> ImageOps.exif_transpose -> convert('RGB')",
             "order_rationale": "orientation must be fixed while the image is still tagged, "

@@ -94,6 +94,44 @@ def set_global_seed(seed: int) -> None:
 
 
 # ----------------------------------------------------------------------------
+# Run provenance
+# ----------------------------------------------------------------------------
+
+
+def runtime_versions() -> dict:
+    """Snapshot the interpreter and library versions that produced a result file.
+
+    Results JSON carries no numbers that depend on the environment, so a reader
+    has no way to tell a 3.11 run from a 3.14 one. Stamping the versions next to
+    the numbers makes each artifact self-describing and lets a rerun be compared
+    against it.
+
+    Versions are read from the imported modules rather than ``pip freeze`` so the
+    snapshot reflects what actually ran, including any editable or local install.
+    """
+    import sys
+
+    import matplotlib
+    import scipy
+    import sklearn
+    import torchvision
+
+    return {
+        "python": sys.version.split()[0],
+        "python_implementation": sys.implementation.name,
+        "packages": {
+            "torch": torch.__version__,
+            "torchvision": torchvision.__version__,
+            "numpy": np.__version__,
+            "scikit_learn": sklearn.__version__,
+            "scipy": scipy.__version__,
+            "matplotlib": matplotlib.__version__,
+            "pillow": Image.__version__,
+        },
+    }
+
+
+# ----------------------------------------------------------------------------
 # Path collection
 # ----------------------------------------------------------------------------
 
