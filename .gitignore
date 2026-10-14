@@ -21,3 +21,7 @@ __pycache__/
 /HW01/.backup_precorrection
 /HW01/submission_stage1
 /HW01/submission_stage1.zip
+
+# stage 2 (HW02) generated artefacts; reuses HW01/.cache
+/HW02/results
+/HW02/plots
