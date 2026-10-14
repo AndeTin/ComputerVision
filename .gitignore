@@ -25,3 +25,7 @@ __pycache__/
 # stage 2 (HW02) generated artefacts; reuses HW01/.cache
 /HW02/results
 /HW02/plots
+
+# stage-2 report is 2.9 MB, over jj's 2.5 MB snapshot limit; regenerated from
+# the tracked HTML via `chromium --headless --print-to-pdf`
+/HW02/submission_stage2/HW02_stage2_report.pdf
